@@ -1,28 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PyScript Sequence Prediction</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.11.2/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.11.2/core.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #output { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
-        label { display: block; margin: 10px 0; }
-        input, button { padding: 5px; margin: 5px; }
-    </style>
+    <title>Πρόβλεψη Ακολουθίας με Random Forest</title>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
 </head>
 <body>
-    <h1>Sequence Prediction with PyScript</h1>
-    <div>
-        <label for="sequence">Enter sequence (comma-separated numbers):</label>
-        <input type="text" id="sequence" value="1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,2,7,12,5,14,2,13,2,12,3,6,5,15,2,13,5,15,7,12">
-        <label for="window_size">Window Size:</label>
-        <input type="number" id="window_size" value="3" min="1">
-        <button onclick="runPrediction()">Predict</button>
-    </div>
-    <div id="output">Results will appear here...</div>
+    <h1>Πρόβλεψη Επόμενου Αριθμού με Random Forest</h1>
+    <div id="output"></div>
 
     <py-config>
         packages = ["numpy", "scikit-learn"]
@@ -31,57 +17,46 @@
     <py-script>
         import numpy as np
         from sklearn.ensemble import RandomForestRegressor
-        from sklearn.model_selection import cross_val_score
-        from pyscript import document
-        import js
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import mean_squared_error
+        from pyodide.ffi import create_proxy
 
-        def run_prediction(*args, **kwargs):
-            output_div = document.querySelector("#output")
-            try:
-                # Get inputs
-                sequence_input = document.querySelector("#sequence").value
-                window_size = int(document.querySelector("#window_size").value)
-                output_div.innerHTML = "Processing sequence..."
+        # Τεχνητό dataset αριθμητικής ακολουθίας
+        sequence = np.array([
+            1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,0,2,15,3,6,4,6,
+            5,15,6,6,7,12,1,0,2,15,3,6,4,6,5,15,6,6,7,12,
+            1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,2,7,12,5,14,
+            2,13,2,12,3,6,5,15,2,13,5,15,7,12
+        ])
 
-                # Parse sequence
-                sequence = np.array([float(x.strip()) for x in sequence_input.split(",")])
+        # Παράθυρο για την πρόβλεψη του επόμενου αριθμού
+        window_size = 1
 
-                # Validate inputs
-                if len(sequence) < window_size + 1:
-                    output_div.innerHTML = f"Error: Sequence too short. Need at least {window_size + 1} numbers."
-                    return
+        # Δημιουργία X (features) και y (στόχος)
+        X, y = [], []
+        for i in range(len(sequence) - window_size):
+            X.append(sequence[i:i+window_size])
+            y.append(sequence[i+window_size])
+        X = np.array(X)
+        y = np.array(y)
 
-                # Create X and y
-                X, y = [], []
-                for i in range(len(sequence) - window_size):
-                    X.append(sequence[i:i+window_size])
-                    y.append(sequence[i+window_size])
-                X = np.array(X)
-                y = np.array(y)
+        # Εκπαίδευση μοντέλου
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = RandomForestRegressor(n_estimators=100, random_state=42)
+        model.fit(X_train, y_train)
 
-                # Train model with cross-validation
-                model = RandomForestRegressor(n_estimators=100, random_state=42)
-                scores = cross_val_score(model, X, y, cv=5, scoring='neg_mean_squared_error')
-                mse = -scores.mean()
+        # Αξιολόγηση
+        y_pred = model.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
 
-                # Train final model
-                model.fit(X, y)
+        # Πρόβλεψη επόμενου αριθμού
+        last_window = sequence[-window_size:]
+        next_number = model.predict([last_window])[0]
 
-                # Predict next number
-                last_window = sequence[-window_size:]
-                next_number = model.predict([last_window])[0]
-
-                # Output results
-                output_div.innerHTML = (
-                    f"Cross-Validated Mean Squared Error: {mse:.4f}<br>"
-                    f"Predicted Next Number: {next_number:.2f}"
-                )
-            except Exception as e:
-                output_div.innerHTML = f"Error: {str(e)}"
-                js.console.log(str(e))  # Log to browser console for debugging
-
-        # Bind the function
-        document.querySelector("button").onclick = run_prediction
+        # Εμφάνιση αποτελεσμάτων
+        output = f"Mean Squared Error: {mse:.4f}<br>Επόμενος αριθμός στην ακολουθία: {next_number:.2f}"
+        display = Element("output")
+        display.element.innerHTML = output
     </py-script>
 </body>
 </html>
