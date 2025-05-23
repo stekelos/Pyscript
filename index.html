@@ -31,22 +31,24 @@
     <py-script>
         import numpy as np
         from sklearn.ensemble import RandomForestRegressor
-        from sklearn.model_selection import train_test_split, cross_val_score
-        from sklearn.metrics import mean_squared_error
-        from pyscript import document, window
+        from sklearn.model_selection import cross_val_score
+        from pyscript import document
+        import js
 
         def run_prediction(*args, **kwargs):
+            output_div = document.querySelector("#output")
             try:
-                # Get inputs from HTML form
+                # Get inputs
                 sequence_input = document.querySelector("#sequence").value
                 window_size = int(document.querySelector("#window_size").value)
+                output_div.innerHTML = "Processing sequence..."
 
                 # Parse sequence
                 sequence = np.array([float(x.strip()) for x in sequence_input.split(",")])
 
                 # Validate inputs
                 if len(sequence) < window_size + 1:
-                    document.querySelector("#output").innerHTML = "Error: Sequence too short for the given window size."
+                    output_div.innerHTML = f"Error: Sequence too short. Need at least {window_size + 1} numbers."
                     return
 
                 # Create X and y
@@ -62,7 +64,7 @@
                 scores = cross_val_score(model, X, y, cv=5, scoring='neg_mean_squared_error')
                 mse = -scores.mean()
 
-                # Train final model on all data for prediction
+                # Train final model
                 model.fit(X, y)
 
                 # Predict next number
@@ -70,15 +72,15 @@
                 next_number = model.predict([last_window])[0]
 
                 # Output results
-                output_div = document.querySelector("#output")
                 output_div.innerHTML = (
                     f"Cross-Validated Mean Squared Error: {mse:.4f}<br>"
                     f"Predicted Next Number: {next_number:.2f}"
                 )
             except Exception as e:
-                document.querySelector("#output").innerHTML = f"Error: {str(e)}"
+                output_div.innerHTML = f"Error: {str(e)}"
+                js.console.log(str(e))  # Log to browser console for debugging
 
-        # Bind the function to the button
+        # Bind the function
         document.querySelector("button").onclick = run_prediction
     </py-script>
 </body>
