@@ -1,58 +1,61 @@
 <!DOCTYPE html>
-<html lang="el">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Πρόβλεψη Ακολουθίας</title>
-  <link rel="stylesheet" href="https://pyscript.net/releases/2024.05.1/core.css">
-  <script type="module" src="https://pyscript.net/releases/2024.05.1/core.js"></script>
+  <title>Πρόβλεψη Επόμενου Αριθμού</title>
+  <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+  <script defer src="https://pyscript.net/latest/pyscript.js"></script>
 </head>
 <body>
-  <h1>Πρόβλεψη Επόμενου Αριθμού</h1>
-  <div id="output">Υπολογισμός...</div>
 
-  <py-config>
-    packages = [
-      "numpy",
-      "scikit-learn"
-    ]
-  </py-config>
+<h2>Πρόβλεψη επόμενου αριθμού με scikit-learn (PyScript)</h2>
 
-  <py-script>
-from js import document
-import numpy as np
+<p>Ακολουθία (διαχωρισμένη με κόμμα):</p>
+<textarea id="sequence-input">1, 2, 3, 4, 5, 6, 7</textarea><br><br>
+
+<button py-click="predict_next">Πρόβλεψε τον επόμενο αριθμό</button>
+
+<h3 id="output"></h3>
+
+<py-config>
+packages = ["scikit-learn", "numpy"]
+</py-config>
+
+<py-script>
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+import numpy as np
+from js import document
 
-# Τεχνητό dataset αριθμητικής ακολουθίας
-sequence = np.array([
-    1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,0,2,15,3,6,4,6,
-    5,15,6,6,7,12,1,0,2,15,3,6,4,6,5,15,6,6,7,12,
-    1,0,2,15,3,6,4,6,5,15,6,6,7,12,1,2,7,12,5,14,
-    2,13,2,12,3,6,5,15,2,13,5,15,7,12
-])
+def predict_next(*args):
+    # Λήψη εισόδου χρήστη
+    raw_input = document.getElementById("sequence-input").value
+    try:
+        sequence = [float(x.strip()) for x in raw_input.split(",") if x.strip() != ""]
+    except ValueError:
+        document.getElementById("output").innerText = "Μη έγκυρη είσοδος!"
+        return
 
-window_size = 1
+    if len(sequence) < 4:
+        document.getElementById("output").innerText = "Δώσε τουλάχιστον 4 αριθμούς."
+        return
 
-X, y = [], []
-for i in range(len(sequence) - window_size):
-    X.append(sequence[i:i+window_size])
-    y.append(sequence[i+window_size])
-X = np.array(X)
-y = np.array(y)
+    window_size = 3
+    X, y = [], []
+    for i in range(len(sequence) - window_size):
+        X.append(sequence[i:i+window_size])
+        y.append(sequence[i+window_size])
+    X = np.array(X)
+    y = np.array(y)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-model = RandomForestRegressor(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+    # Εκπαίδευση μοντέλου
+    model = RandomForestRegressor(n_estimators=100)
+    model.fit(X, y)
 
-y_pred = model.predict(X_test)
-mse = mean_squared_error(y_test, y_pred)
+    # Πρόβλεψη
+    last_window = np.array(sequence[-window_size:]).reshape(1, -1)
+    next_value = model.predict(last_window)[0]
 
-last_window = sequence[-window_size:]
-next_number = model.predict([last_window])[0]
+    document.getElementById("output").innerText = f"Επόμενος αριθμός: {next_value:.2f}"
+</py-script>
 
-output_text = f"Mean Squared Error: {mse:.4f}<br>Επόμενος αριθμός στην ακολουθία: {next_number:.2f}"
-document.getElementById("output").innerHTML = output_text
-  </py-script>
 </body>
 </html>
